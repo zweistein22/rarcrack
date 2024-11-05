@@ -133,6 +133,8 @@ void eprintf(const wchar *fmt,...)
   if (MsgStream==MSG_NULL)
     return;
 
+  return;
+
   fflush(stdout); // Ensure proper message order.
 
   va_list arglist;

@@ -233,21 +233,29 @@ void *crack_thread() {
     while (1) {
         current = nextpass();
         sprintf((char*)&cmd, finalcmd, current, filename);
-        Pipe = popen(cmd, "r");
-        while (! feof(Pipe)) {
-            fgets((char*)&ret, 200, Pipe);
-            if (strcasestr(ret, "ok") != NULL) {
-                strcpy(password_good, current);
-                xmlMutexLock(finishedMutex);
-                finished = 1;
-                printf("GOOD: password cracked: '%s'\n", current);
-                xmlMutexUnlock(finishedMutex);
-                savestatus();
-                break;
-            }
-        }
+        
+        const int MAX_ARGS = 5;
+        char* argv[MAX_ARGS];
+        int argc = 0;
 
-        pclose(Pipe);
+        // Use strtok to split the command line into tokens
+        char* token = strtok(cmd," "); // Split by spaces
+        while (token != NULL && argc < MAX_ARGS) {
+            argv[argc++] = token; // Store the token in argv and increment argc
+            token = strtok(NULL, " "); // Get the next token
+        }
+        //printf("%s %s %s %s %s\n\r", argv[0], argv[1], argv[2],argv[3], argv[4]);
+        // Null-terminate the argv array
+        argv[argc] = NULL;
+
+        int r=rarmain(argc,argv);
+        if (r == 0) {
+            strcpy(password_good, current);
+            xmlMutexLock(finishedMutex);
+            finished = 1;
+            printf("GOOD: password cracked: '%s'\n", current);
+            xmlMutexUnlock(finishedMutex);
+        }
         xmlMutexLock(finishedMutex);
         counter++;
 
@@ -404,8 +412,6 @@ void init(int argc, char **argv) {
 int main(int argc, char **argv) {
     // Print author
     printf("RarCrack! 0.2 by David Zoltan Kedves (kedazo@gmail.com)\n\n");
-  //  __builtin_trap();
-    raise(2);
     init(argc,argv);
 
     if (ABC != (char*) &default_ABC) {
