@@ -30,6 +30,7 @@ const char *CMD[] = { "unrar t -y -p%s %s 2>&1", "7z t -y -p%s %s 2>&1", "unzip 
 
 // Max password length
 #define PWD_LEN 100
+const int MAX_THREADS = 32;
 
 char *getfirstpassword();
 void crack_start(unsigned int threads);
@@ -270,20 +271,20 @@ void *crack_thread() {
 }
 
 void crack_start(unsigned int threads) {
-    pthread_t th[13];
+    pthread_t th[MAX_THREADS+1];
     unsigned int i;
 
     for (i = 0; i < threads; i++) {
         (void) pthread_create(&th[i], NULL,  crack_thread, NULL);
     }
 
-    (void) pthread_create(&th[12], NULL, status_thread, NULL);
+    (void) pthread_create(&th[MAX_THREADS], NULL, status_thread, NULL);
 
     for (i = 0; i < threads; i++) {
         (void) pthread_join(th[i], NULL);
     }
 
-    (void) pthread_join(th[12], NULL);
+    (void) pthread_join(th[MAX_THREADS], NULL);
 }
 
 void init(int argc, char **argv) {
@@ -308,7 +309,7 @@ void init(int argc, char **argv) {
                 printf("         --type: you can specify the archive program, this needed when\n");
                 printf("                 the program couldn't detect the proper file type\n");
                 printf("         --threads: you can specify how many threads\n");
-                printf("                    will be run, maximum 12 (default: 2)\n\n");
+                printf("                    will be run, maximum %i (default: 2)\n\n", MAX_THREADS);
                 printf("Info:    This program supports only RAR, ZIP and 7Z encrypted archives.\n");
                 printf("         RarCrack! usually detects the archive type.\n\n");
                 help = 1;
@@ -317,9 +318,9 @@ void init(int argc, char **argv) {
                 if ((i + 1) < argc) {
                     sscanf(argv[++i], "%d", &threads);
                     if (threads < 1) threads = 1;
-                    if (threads > 12) {
-                        printf("INFO: number of threads adjusted to 12\n");
-                        threads = 12;
+                    if (threads > MAX_THREADS) {
+                        printf("INFO: number of threads adjusted to %i\n", MAX_THREADS);
+                        threads = MAX_THREADS;
                     }
                 } else {
                     printf("ERROR: missing parameter for option: --threads!\n");
