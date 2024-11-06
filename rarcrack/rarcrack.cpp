@@ -1,19 +1,34 @@
-// Standard headers
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
 
+
+// Standard headers
+
+#ifdef _WIN32
+#include <windows.h>
+#undef  ABC   // we have conflict with char *ABC now renamed __ABC
+#else
+#include <unistd.h>
+#endif
+
+#include <pthread.h>
 // libxml2 headers
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
 #include <libxml/threads.h>
+int rarmain(int argc, char* argv[]);
+
+#define MAX_ARGS 5
+#define MAX_THREADS 32
+
+
 
 // Default char list
-char default_ABC[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const char default_ABC[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+thread_local char* rABC  = (char*)default_ABC;;
+thread_local int ABCLEN;
+
 
 // Command checks the type of file
 const char CMD_DETECT[] = "file -i -b %s";
@@ -30,13 +45,11 @@ const char *CMD[] = { "unrar t -y -p%s %s 2>&1", "7z t -y -p%s %s 2>&1", "unzip 
 
 // Max password length
 #define PWD_LEN 100
-const int MAX_THREADS = 32;
 
 char *getfirstpassword();
 void crack_start(unsigned int threads);
 
-char* ABC = (char*) &default_ABC;
-int ABCLEN;
+
 
 char password[PWD_LEN+1] = {'\0','\0'}; //this contains the actual password
 char password_good[PWD_LEN+1] = {'\0', '\0'};  //this changed only once, when we found the good passord
@@ -52,7 +65,7 @@ char finalcmd[300] = {'\0', '\0'}; //this depending on arhive file type, it's a 
 
 char *getfirstpassword() {
     static char ret[2];
-    ret[0] = ABC[0];
+    ret[0] = rABC[0];
     ret[1] = '\0';
     return (char*) &ret;
 }
@@ -99,7 +112,7 @@ void savestatus() {
 int abcnumb(char a) {
     int i = 0;
     for (i = 0; i < ABCLEN; i++) {
-        if (ABC[i] == a) {
+        if (rABC[i] == a) {
             return i;
         }
     }
@@ -131,7 +144,7 @@ int loadstatus() {
         for (node = root->children; node; node = node->next) {
             if (xmlStrcmp(node->name, (const xmlChar*)"abc") == 0) {
                 if (node->children && (strlen((const char*)node->children->content) > 0)) {
-                    ABC = (char *)xmlStringDecodeEntities(parserctxt, (const xmlChar*)node->children->content, XML_SUBSTITUTE_BOTH, 0, 0, 0);
+                    rABC = (char *)xmlStringDecodeEntities(parserctxt, (const xmlChar*)node->children->content, XML_SUBSTITUTE_BOTH, 0, 0, 0);
                 } else {
                     ret = 1;
                 }
@@ -166,7 +179,7 @@ int loadstatus() {
     } else {
         root = xmlNewNode(NULL, (const xmlChar*)"rarcrack");
         xmlDocSetRootElement(status, root);
-        node = xmlNewTextChild(root, NULL, (const xmlChar*)"abc", (const xmlChar*)ABC);
+        node = xmlNewTextChild(root, NULL, (const xmlChar*)"ABC", (const xmlChar*)rABC);
         node = xmlNewTextChild(root, NULL, (const xmlChar*)"current", (const xmlChar*)getfirstpassword());
         node = xmlNewTextChild(root, NULL, (const xmlChar*)"good_password", (const xmlChar*)"");
         savestatus();
@@ -177,8 +190,8 @@ int loadstatus() {
 
 void nextpass2(char *p, unsigned int n) {
     int i;
-    if (p[n] == ABC[ABCLEN-1]) {
-        p[n] = ABC[0];
+    if (p[n] == rABC[ABCLEN-1]) {
+        p[n] = rABC[0];
 
         if (n > 0) {
             nextpass2(p, n-1);
@@ -187,11 +200,11 @@ void nextpass2(char *p, unsigned int n) {
                 p[i+1]=p[i];
             }
 
-            p[0]=ABC[0];
+            p[0]=rABC[0];
             p[++curr_len]='\0';
         }
     } else {
-        p[n] = ABC[abcnumb(p[n])+1];
+        p[n] = rABC[abcnumb(p[n])+1];
     }
 }
 
@@ -205,11 +218,15 @@ char *nextpass() {
     return ok;
 }
 
-void *status_thread() {
+void* __cdecl status_thread(void *) {
     int pwds;
     const short status_sleep = 3;
     while(1) {
+#ifdef WIN32
+        _sleep(status_sleep);
+#else
         sleep(status_sleep);
+#endif
         xmlMutexLock(finishedMutex);
         pwds = counter / status_sleep;
         counter = 0;
@@ -224,9 +241,10 @@ void *status_thread() {
         xmlMutexUnlock(pwdMutex);
         savestatus();	//FIXME: this is wrong, when probing current password(s) is(are) not finished yet, and the program is exiting
     }
+    return NULL;
 }
 
-void *crack_thread() {
+void* __cdecl crack_thread(void *) {
     char *current;
     char ret[200];
     char cmd[400];
@@ -234,8 +252,10 @@ void *crack_thread() {
     while (1) {
         current = nextpass();
         sprintf((char*)&cmd, finalcmd, current, filename);
-        
-        const int MAX_ARGS = 5;
+        if (!strcmp("100", current)) {
+            printf("pw='100',%s\n\r", cmd);
+        }
+       
         char* argv[MAX_ARGS];
         int argc = 0;
 
@@ -257,6 +277,7 @@ void *crack_thread() {
             printf("GOOD: password cracked: '%s'\n", current);
             xmlMutexUnlock(finishedMutex);
         }
+        
         xmlMutexLock(finishedMutex);
         counter++;
 
@@ -268,6 +289,7 @@ void *crack_thread() {
         xmlMutexUnlock(finishedMutex);
         free(current);
     }
+    return NULL;
 }
 
 void crack_start(unsigned int threads) {
@@ -289,6 +311,8 @@ void crack_start(unsigned int threads) {
 
 void init(int argc, char **argv) {
     int i, j;
+   
+   
     int help = 0;
     int threads = 1;
     int archive_type = -1;
@@ -368,9 +392,17 @@ void init(int argc, char **argv) {
     if (finalcmd[0] == '\0') {
         //when we specify the file type, the programm will skip the test
         sprintf((char*)&test, CMD_DETECT, filename);
-        totest = popen(test,"r");
+#ifdef WIN32
+        totest = _popen(test,"r");
+#else
+        totest = popen(test, "r");
+#endif
         fscanf(totest,"%s",(char*)&test);
+#ifdef WIN32
+        _pclose(totest);
+#else
         pclose(totest);
+#endif
 
         for (i = 0; strcmp(MIME[i],"") != 0; i++) {
             if (strcmp(MIME[i],test) == 0) {
@@ -401,10 +433,10 @@ void init(int argc, char **argv) {
         return;
     }
 
-    ABCLEN = strlen(ABC);
+    ABCLEN = strlen((const char *)rABC);
 
     if (password[0] == '\0') {
-        password[0] = ABC[0];
+        password[0] = rABC[0];
     }
 
     crack_start(threads);
@@ -415,8 +447,8 @@ int main(int argc, char **argv) {
     printf("RarCrack! 0.2 by David Zoltan Kedves (kedazo@gmail.com)\n\n");
     init(argc,argv);
 
-    if (ABC != (char*) &default_ABC) {
-        xmlFree(ABC);
+    if (rABC != (char*) &default_ABC) {
+        xmlFree(rABC);
     }
 
     if (status) {
