@@ -36,7 +36,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)  # Equivalent to -fPIC
 find_package(LibXml2 REQUIRED)
 include_directories(${XML2_INCLUDE_DIRS})
 link_directories(${XML2_LIBRARY_DIRS})
-find_package(PThreads4W REQUIRED)
+if(WIN32)
+  find_package(PThreads4W REQUIRED)
+endif()
 include_directories(${PTHREADS4W_INCLUDE_DIRS})
 
 # Output directories
@@ -52,12 +54,14 @@ set(OBJECTS  rar.cpp strlist.cpp strfn.cpp pathfn.cpp smallfn.cpp global.cpp fil
     crc.cpp rawread.cpp encname.cpp resource.cpp match.cpp timefn.cpp rdwrfn.cpp 
     consio.cpp options.cpp errhnd.cpp rarvm.cpp secpassword.cpp rijndael.cpp getbits.cpp 
     sha1.cpp sha256.cpp blake2s.cpp hash.cpp extinfo.cpp extract.cpp volume.cpp list.cpp 
-    find.cpp unpack.cpp headers.cpp threadpool.cpp rs16.cpp cmddata.cpp ui.cpp rarcrack.c)
+    find.cpp unpack.cpp headers.cpp threadpool.cpp rs16.cpp cmddata.cpp ui.cpp rarcrack.cpp)
 
 # Target for unrar executable
 add_executable(rarcrack ${OBJECTS} ${UNRAR_OBJ})
 target_link_libraries(rarcrack  ${XML2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+if(WIN32)
 target_link_libraries(rarcrack PRIVATE PThreads4W::PThreads4W)
+endif()
 add_custom_command(TARGET rarcrack POST_BUILD
     COMMAND ${CMAKE_STRIP} $<TARGET_FILE:rarcrack>
 ) 

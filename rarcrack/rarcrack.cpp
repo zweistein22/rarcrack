@@ -3,7 +3,7 @@
 // Standard headers
 
 #ifdef _WIN32
-#include <windows.h>
+//#include <windows.h>
 #undef  ABC   // we have conflict with char *ABC now renamed __ABC
 #else
 #include <unistd.h>
@@ -16,6 +16,12 @@
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
 #include <libxml/threads.h>
+#include <string>
+#include "rartypes.hpp"
+#include "errhnd.hpp"
+#include "global.hpp"
+
+void InitConsole();
 int rarmain(int argc, char* argv[]);
 
 #define MAX_ARGS 5
@@ -26,8 +32,8 @@ int rarmain(int argc, char* argv[]);
 // Default char list
 const char default_ABC[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-thread_local char* rABC  = (char*)default_ABC;;
-thread_local int ABCLEN;
+char* __ABC  = (char*)default_ABC;;
+int ABCLEN;
 
 
 // Command checks the type of file
@@ -65,7 +71,7 @@ char finalcmd[300] = {'\0', '\0'}; //this depending on arhive file type, it's a 
 
 char *getfirstpassword() {
     static char ret[2];
-    ret[0] = rABC[0];
+    ret[0] = __ABC[0];
     ret[1] = '\0';
     return (char*) &ret;
 }
@@ -112,7 +118,7 @@ void savestatus() {
 int abcnumb(char a) {
     int i = 0;
     for (i = 0; i < ABCLEN; i++) {
-        if (rABC[i] == a) {
+        if (__ABC[i] == a) {
             return i;
         }
     }
@@ -144,7 +150,7 @@ int loadstatus() {
         for (node = root->children; node; node = node->next) {
             if (xmlStrcmp(node->name, (const xmlChar*)"abc") == 0) {
                 if (node->children && (strlen((const char*)node->children->content) > 0)) {
-                    rABC = (char *)xmlStringDecodeEntities(parserctxt, (const xmlChar*)node->children->content, XML_SUBSTITUTE_BOTH, 0, 0, 0);
+                    __ABC = (char *)xmlStringDecodeEntities(parserctxt, (const xmlChar*)node->children->content, XML_SUBSTITUTE_BOTH, 0, 0, 0);
                 } else {
                     ret = 1;
                 }
@@ -152,7 +158,7 @@ int loadstatus() {
                 if (node->children && (strlen((const char*)node->children->content) > 0)) {
                     tmp = (char *)xmlStringDecodeEntities(parserctxt, (const xmlChar*)node->children->content, XML_SUBSTITUTE_BOTH, 0, 0, 0);
                     strcpy(password,tmp);
-                    curr_len = strlen(password);
+                    curr_len = (int)strlen(password);
                     printf("INFO: Resuming cracking from password: '%s'\n",password);
                     xmlFree(tmp);
                 } else {
@@ -162,7 +168,7 @@ int loadstatus() {
                 if (node->children && (strlen((const char*)node->children->content) > 0)) {
                     tmp = (char *)xmlStringDecodeEntities(parserctxt, node->children->content, XML_SUBSTITUTE_BOTH,0,0,0);
                     strcpy(password,tmp);
-                    curr_len = strlen(password);
+                    curr_len = (int)strlen(password);
                     xmlMutexLock(finishedMutex);
                     finished = 1;
                     xmlMutexUnlock(finishedMutex);
@@ -179,7 +185,7 @@ int loadstatus() {
     } else {
         root = xmlNewNode(NULL, (const xmlChar*)"rarcrack");
         xmlDocSetRootElement(status, root);
-        node = xmlNewTextChild(root, NULL, (const xmlChar*)"ABC", (const xmlChar*)rABC);
+        node = xmlNewTextChild(root, NULL, (const xmlChar*)"ABC", (const xmlChar*)__ABC);
         node = xmlNewTextChild(root, NULL, (const xmlChar*)"current", (const xmlChar*)getfirstpassword());
         node = xmlNewTextChild(root, NULL, (const xmlChar*)"good_password", (const xmlChar*)"");
         savestatus();
@@ -190,8 +196,8 @@ int loadstatus() {
 
 void nextpass2(char *p, unsigned int n) {
     int i;
-    if (p[n] == rABC[ABCLEN-1]) {
-        p[n] = rABC[0];
+    if (p[n] == __ABC[ABCLEN-1]) {
+        p[n] = __ABC[0];
 
         if (n > 0) {
             nextpass2(p, n-1);
@@ -200,11 +206,11 @@ void nextpass2(char *p, unsigned int n) {
                 p[i+1]=p[i];
             }
 
-            p[0]=rABC[0];
+            p[0]=__ABC[0];
             p[++curr_len]='\0';
         }
     } else {
-        p[n] = rABC[abcnumb(p[n])+1];
+        p[n] = __ABC[abcnumb(p[n])+1];
     }
 }
 
@@ -222,8 +228,8 @@ void* __cdecl status_thread(void *) {
     int pwds;
     const short status_sleep = 3;
     while(1) {
-#ifdef WIN32
-        _sleep(status_sleep);
+#ifdef _WIN32
+        _sleep(status_sleep*1000);
 #else
         sleep(status_sleep);
 #endif
@@ -246,9 +252,8 @@ void* __cdecl status_thread(void *) {
 
 void* __cdecl crack_thread(void *) {
     char *current;
-    char ret[200];
     char cmd[400];
-    FILE *Pipe;
+    ErrHandler.SetSignalHandlers(true);
     while (1) {
         current = nextpass();
         sprintf((char*)&cmd, finalcmd, current, filename);
@@ -256,7 +261,7 @@ void* __cdecl crack_thread(void *) {
             printf("pw='100',%s\n\r", cmd);
         }
        
-        char* argv[MAX_ARGS];
+        char* argv[MAX_ARGS+1];
         int argc = 0;
 
         // Use strtok to split the command line into tokens
@@ -265,11 +270,12 @@ void* __cdecl crack_thread(void *) {
             argv[argc++] = token; // Store the token in argv and increment argc
             token = strtok(NULL, " "); // Get the next token
         }
-        //printf("%s %s %s %s %s\n\r", argv[0], argv[1], argv[2],argv[3], argv[4]);
+       // printf("%s %s %s %s %s\n\r", argv[0], argv[1], argv[2],argv[3], argv[4]);
         // Null-terminate the argv array
         argv[argc] = NULL;
 
         int r=rarmain(argc,argv);
+        
         if (r == 0) {
             strcpy(password_good, current);
             xmlMutexLock(finishedMutex);
@@ -392,13 +398,13 @@ void init(int argc, char **argv) {
     if (finalcmd[0] == '\0') {
         //when we specify the file type, the programm will skip the test
         sprintf((char*)&test, CMD_DETECT, filename);
-#ifdef WIN32
+#ifdef _WIN32
         totest = _popen(test,"r");
 #else
         totest = popen(test, "r");
 #endif
         fscanf(totest,"%s",(char*)&test);
-#ifdef WIN32
+#ifdef _WIN32
         _pclose(totest);
 #else
         pclose(totest);
@@ -433,10 +439,10 @@ void init(int argc, char **argv) {
         return;
     }
 
-    ABCLEN = strlen((const char *)rABC);
+    ABCLEN = (int)strlen((const char *)__ABC);
 
     if (password[0] == '\0') {
-        password[0] = rABC[0];
+        password[0] = __ABC[0];
     }
 
     crack_start(threads);
@@ -444,11 +450,12 @@ void init(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     // Print author
+    //InitConsole();
     printf("RarCrack! 0.2 by David Zoltan Kedves (kedazo@gmail.com)\n\n");
     init(argc,argv);
 
-    if (rABC != (char*) &default_ABC) {
-        xmlFree(rABC);
+    if (__ABC != (char*) &default_ABC) {
+        xmlFree(__ABC);
     }
 
     if (status) {
