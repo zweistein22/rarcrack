@@ -58,6 +58,9 @@ int rarmain(int argc, char *argv[])
     Cmd->ParseDone();
     Cmd->AbsoluteLinks=true; // If users runs SFX, he trusts an archive source.
 #else // !SFX_MODULE
+    if (!strcmp(argv[3],"-p10")) {
+        int a = 1;
+    }
     Cmd->ParseCommandLine(true,argc,argv);
     if (!Cmd->ConfigDisabled)
     {
@@ -80,7 +83,11 @@ int rarmain(int argc, char *argv[])
     Cmd->OutTitle();
     Cmd->ProcessCommand();
     RAR_EXIT rarexit = ErrHandler.GetErrorCode();
- //   if (rarexit == RARX_CRC) return rarexit;
+    if (Cmd->DllError == ERAR_BAD_PASSWORD)  return RARX_BADPWD;
+    if (Cmd->DllError == ERAR_SUCCESS) {
+        return RARX_SUCCESS;
+    }
+    return rarexit;
   }
   catch (RAR_EXIT ErrCode)
   {
@@ -104,7 +111,7 @@ int rarmain(int argc, char *argv[])
   ErrHandler.MainExit=true;
   CloseLogOptions();
   RAR_EXIT rv=  ErrHandler.GetErrorCode();
-  eprintf(L"Main exit: rv=%i", rv);
+  //printf("Main exit: rv=%i", rv);
   return rv;
 }
 #endif

@@ -464,9 +464,9 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
     if (MatchFound)
     {
       uiMsg(UIERROR_NEEDPREVVOL,Arc.FileName,ArcFileName);
-#ifdef RARDLL
+//#ifdef RARDLL
       Cmd->DllError=ERAR_BAD_DATA;
-#endif
+//#endif
       ErrHandler.SetErrorCode(RARX_OPEN);
     }
     MatchFound=false;
@@ -546,9 +546,9 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
     if (!CheckUnpVer(Arc,ArcFileName))
     {
       ErrHandler.SetErrorCode(RARX_FATAL);
-#ifdef RARDLL
+//#ifdef RARDLL
       Cmd->DllError=ERAR_UNKNOWN_FORMAT;
-#endif
+//#endif
       Arc.SeekToNext();
       return !Arc.Solid; // Can try extracting next file only in non-solid archive.
     }
@@ -572,6 +572,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
         if (!ExtrGetPassword(Arc,ArcFileName,CheckPwd.IsSet() ? &CheckPwd:NULL))
         {
           SuppressNoFilesMessage=true;
+          Cmd->DllError = ERAR_MISSING_PASSWORD;
           return false;
         }
 #endif
@@ -613,12 +614,12 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
             continue; // Request a password again.
   #endif
           }
-  #ifdef RARDLL
+  //#ifdef RARDLL
           // If we already have ERAR_EOPEN as result of missing volume,
           // we should not replace it with less precise ERAR_BAD_PASSWORD.
           if (Cmd->DllError!=ERAR_EOPEN)
             Cmd->DllError=ERAR_BAD_PASSWORD;
-  #endif
+  //#endif
           ErrHandler.SetErrorCode(RARX_BADPWD);
           ExtrFile=false;
         }
@@ -917,13 +918,13 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
             uiMsg(UIERROR_CHECKSUM,Arc.FileName,ArcFileName);
           BrokenFile=true;
           ErrHandler.SetErrorCode(RARX_CRC);
-#ifdef RARDLL
+//#ifdef RARDLL
           // If we already have ERAR_EOPEN as result of missing volume
           // or ERAR_BAD_PASSWORD for RAR5 wrong password,
           // we should not replace it with less precise ERAR_BAD_DATA.
           if (Cmd->DllError!=ERAR_EOPEN && Cmd->DllError!=ERAR_BAD_PASSWORD)
             Cmd->DllError=ERAR_BAD_DATA;
-#endif
+//#endif
         }
       }
       else
@@ -1093,9 +1094,9 @@ bool CmdExtract::ExtractFileCopy(File &New,const std::wstring &ArcName,const std
       ErrHandler.OpenErrorMsg(TmpExisting);
       uiMsg(UIERROR_FILECOPY,ArcName,TmpExisting,NameNew);
       uiMsg(UIERROR_FILECOPYHINT,ArcName);
-#ifdef RARDLL
+//#ifdef RARDLL
       Cmd->DllError=ERAR_EREFERENCE;
-#endif
+//#endif
       return false;
     }
   }
@@ -1385,9 +1386,9 @@ void CmdExtract::ExtrCreateDir(Archive &Arc,const std::wstring &ArcFileName)
     {
       uiMsg(UIERROR_DIRCREATE,Arc.FileName,DestFileName);
       ErrHandler.SysErrMsg();
-#ifdef RARDLL
+//#ifdef RARDLL
       Cmd->DllError=ERAR_ECREATE;
-#endif
+//#endif
       ErrHandler.SetErrorCode(RARX_CREATE);
     }
   if (PrevProcessed)
@@ -1428,9 +1429,9 @@ bool CmdExtract::ExtrCreateFile(Archive &Arc,File &CurFile)
         if (FileExist(DestFileName) && IsDir(GetFileAttr(DestFileName)))
           uiMsg(UIERROR_DIRNAMEEXISTS);
 
-#ifdef RARDLL
+//#ifdef RARDLL
         Cmd->DllError=ERAR_ECREATE;
-#endif
+//#endif
         if (!IsNameUsable(DestFileName))
         {
           uiMsg(UIMSG_CORRECTINGNAME,Arc.FileName);
@@ -1707,9 +1708,9 @@ bool CmdExtract::CheckWinLimit(Archive &Arc,std::wstring &ArcFileName)
   else
   {
     ErrHandler.SetErrorCode(RARX_FATAL);
-#ifdef RARDLL
+//#ifdef RARDLL
     Cmd->DllError=ERAR_LARGE_DICT;
-#endif
+//b#endif
     Arc.SeekToNext();
     return false;
   }

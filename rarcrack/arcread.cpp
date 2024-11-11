@@ -609,12 +609,12 @@ size_t Archive::ReadHeader50()
           uiMsg(UIWAIT_BADPSW,FileName,FileName);
           Cmd->Password.Clean();
         }
-
+        Cmd->DllError = ERAR_BAD_PASSWORD;
 #ifdef RARDLL
         // Avoid new requests for unrar.dll to prevent the infinite loop
         // if app always returns the same password.
         ErrHandler.SetErrorCode(RARX_BADPWD);
-        Cmd->DllError=ERAR_BAD_PASSWORD;
+        
         ErrHandler.Exit(RARX_BADPWD);
 #else
         continue; // Request a password again.
@@ -949,6 +949,7 @@ void Archive::RequestArcPassword(RarCheckPassword *CheckPwd)
     if (!uiGetPassword(UIPASSWORD_ARCHIVE,FileName,&Cmd->Password,CheckPwd))
     {
       Close();
+      Cmd->DllError = ERAR_MISSING_PASSWORD;
       uiMsg(UIERROR_INCERRCOUNT); // Prevent archive deleting if delete after extraction is on.
       ErrHandler.Exit(RARX_USERBREAK);
     }

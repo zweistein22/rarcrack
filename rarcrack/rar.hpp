@@ -5,6 +5,7 @@
 #include "rartypes.hpp"
 #include "os.hpp"
 
+#include "dll_defines.hpp"
 #ifdef RARDLL
 #include "dll.hpp"
 #endif

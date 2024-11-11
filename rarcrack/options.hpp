@@ -210,10 +210,10 @@ class RAROptions
 
 
 
-
+    int DllError;
 #ifdef RARDLL
     int DllOpMode;
-    int DllError;
+    
     LPARAM UserData;
     UNRARCALLBACK Callback;
     CHANGEVOLPROC ChangeVolProc;

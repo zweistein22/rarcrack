@@ -1,22 +1,30 @@
 
 
 // Standard headers
-
+#include <string>
 #ifdef _WIN32
-//#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <winsdkver.h>
+#define _WIN32_WINNT 0x0601
+#include <sdkddkver.h>
+#include <windows.h>
 #undef  ABC   // we have conflict with char *ABC now renamed __ABC
 #else
+#include <cstring>
 #include <unistd.h>
+#define __cdecl  
 #endif
 
 #include <pthread.h>
 // libxml2 headers
+
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
 #include <libxml/threads.h>
-#include <string>
+
+
 #include "rartypes.hpp"
 #include "errhnd.hpp"
 #include "global.hpp"
@@ -257,10 +265,7 @@ void* __cdecl crack_thread(void *) {
     while (1) {
         current = nextpass();
         sprintf((char*)&cmd, finalcmd, current, filename);
-        if (!strcmp("100", current)) {
-            printf("pw='100',%s\n\r", cmd);
-        }
-       
+              
         char* argv[MAX_ARGS+1];
         int argc = 0;
 
@@ -451,6 +456,16 @@ void init(int argc, char **argv) {
 int main(int argc, char **argv) {
     // Print author
     //InitConsole();
+    const char* filename = "test.rar.xml";
+    FILE* file = fopen(filename, "r");
+    if (file) {
+        // File exists, so close it and delete it
+        fclose(file);
+        if (remove(filename)) {
+            printf("error deleting %s", filename);
+        }
+    }
+    
     printf("RarCrack! 0.2 by David Zoltan Kedves (kedazo@gmail.com)\n\n");
     init(argc,argv);
 

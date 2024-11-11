@@ -7,7 +7,7 @@
   #define EXTVAR extern
 #endif
 
-EXTVAR ErrorHandler ErrHandler;
+EXTVAR thread_local ErrorHandler ErrHandler;
 
 
 
